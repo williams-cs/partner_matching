@@ -3,16 +3,23 @@ open CsvHelper
 open CSVUtil
 open System.IO
 open System.Collections.Generic
+open System.Text
+open System.Security.Cryptography
 
 let adict(a: seq<('a*'b)>) = new Dictionary<'a,'b>(a |> dict)
 
-let swap (a: _[]) x y =
+let swap(a: _[]) x y =
     let tmp = a.[x]
     a.[x] <- a.[y]
     a.[y] <- tmp
 
-let shuffle (a: 'a[])(rand: Random) =
+let shuffle(a: 'a[])(rand: Random) =
     Array.iteri (fun i _ -> swap a i (rand.Next(i, Array.length a))) a
+
+let sha1(txt: string) : int =
+    use sha1 = new SHA1Managed()
+    let hash : byte[] = sha1.ComputeHash (Encoding.UTF8.GetBytes txt)
+    BitConverter.ToInt32(hash, 0)
 
 let readRoster(path: string) : Student[] =
     use reader = new StreamReader(path)
@@ -63,10 +70,10 @@ let main argv =
         printfn "Usage: dotnet run <csv> <random seed>"
         exit 1
     let path = argv.[0]
-    let seed = argv.[1]
+    let seed = sha1 argv.[1]
 
     // init RNG using seed
-    let r = new Random(seed.GetHashCode())
+    let r = new Random(seed)
 
     // read CSV
     let students = readRoster path
@@ -81,7 +88,10 @@ let main argv =
     // pair
     let pairing = pair students prefs sByIndex
 
-    for pair in pairing do
+    // sort pairings by first student last name, first name
+    let pairing_sorted = pairing |> Seq.sortBy (fun pair -> (pair.Key.LastName, pair.Key.FirstName))
+
+    for pair in pairing_sorted do
         printfn "%s %s, %s %s" pair.Key.FirstName pair.Key.LastName pair.Value.FirstName pair.Value.LastName
     
     0
