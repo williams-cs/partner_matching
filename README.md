@@ -23,6 +23,10 @@ $ ./partner_matching roster.csv lab1
 
 If your class has an odd number of students, you have two options.  By default, the script will pair the remaining student with a random group.  If you would like to prevent this behavior, add a dummy student record to the CSV.  Then you can pair the remaining student with another group manually after running the script.
 
+## caveats
+
+Almost no effort was made to think hard about the performance of this code.  Performance is roughly O(n^2).
+
 ## questions
 
 Ask Dan.
