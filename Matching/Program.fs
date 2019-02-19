@@ -40,29 +40,24 @@ let randomPreferences(students: Student[])(r: Random) : Dictionary<string,int[]>
 let studentsByIndex(students: Student[]) : Dictionary<int,Student> =
     students |> Array.mapi (fun i student -> i, student) |> adict
 
-let pair(students: Student[])(prefs: Dictionary<string,int[]>)(sByIndex: Dictionary<int,Student>) : Dictionary<Student,Student> =
-    // track student availability (mutable)
-    let available = new HashSet<Student>(students)
+let group_students(students: Student[])(prefs: Dictionary<string,int[]>)(sByIndex: Dictionary<int,Student>)(r: Random) : HashSet<Student>[] =
+    // shuffle
+    let s_shuffled = Array.copy students
+    shuffle s_shuffled r
 
-    // track pairings (mutable)
-    let pairing = new Dictionary<Student,Student>()
+    // split arrays
+    let size = students.Length / 2
+    let students1 = s_shuffled.[0..size - 1]
+    let students2 = s_shuffled.[size..size * 2 - 1]
 
-    for student in students do
-        let mutable complete = false
-        let mutable i = 0
-        let sprefs = prefs.[student.ID]
-        while not complete && i < students.Length do
-            let pref = sprefs.[i]
-            let partner = sByIndex.[pref]
-            if student <> partner && available.Contains partner then
-                available.Remove student |> ignore
-                available.Remove partner |> ignore
-                complete <- true
-                pairing.Add(student, partner)
-            else
-                i <- i + 1
-                
-    pairing
+    // track pairings
+    let groups = Array.init size (fun i -> new HashSet<Student>([students1.[i]; students2.[i]]))
+
+    // if there's an odd student, add them to the last group
+    if students.Length % 2 = 1 then
+        groups.[size - 1].Add(s_shuffled.[s_shuffled.Length - 1]) |> ignore
+
+    groups
 
 [<EntryPoint>]
 let main argv =
@@ -86,13 +81,11 @@ let main argv =
     shuffle students r
 
     // pair
-    let pairing = pair students prefs sByIndex
+    let groups = group_students students prefs sByIndex r
 
-    // sort pairings by first student last name, first name
-    let pairing_sorted = pairing |> Seq.sortBy (fun pair -> (pair.Key.LastName, pair.Key.FirstName))
-
-    for pair in pairing_sorted do
-//        printfn "%s %s, %s %s" pair.Key.FirstName pair.Key.LastName pair.Value.FirstName pair.Value.LastName
-        printfn "%s,%s" pair.Key.Github pair.Value.Github
+    for group in groups do
+        let githubs = group |> Seq.map (fun s -> s.Github)
+        let s = String.Join(",", githubs)
+        printfn "%s" s
     
     0
