@@ -12,6 +12,7 @@ namespace CSVUtil
 	public string ProgramAndPlan { get; set; }
 	public string Level { get; set; }
 	public string Pronouns { get; set; }
+	public string Github { get; set; }
 	public string FirstName
 	{
 		get {

@@ -92,6 +92,7 @@ let main argv =
     let pairing_sorted = pairing |> Seq.sortBy (fun pair -> (pair.Key.LastName, pair.Key.FirstName))
 
     for pair in pairing_sorted do
-        printfn "%s %s, %s %s" pair.Key.FirstName pair.Key.LastName pair.Value.FirstName pair.Value.LastName
+//        printfn "%s %s, %s %s" pair.Key.FirstName pair.Key.LastName pair.Value.FirstName pair.Value.LastName
+        printfn "%s, %s" pair.Key.Github pair.Value.Github
     
     0
