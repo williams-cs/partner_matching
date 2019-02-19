@@ -93,6 +93,6 @@ let main argv =
 
     for pair in pairing_sorted do
 //        printfn "%s %s, %s %s" pair.Key.FirstName pair.Key.LastName pair.Value.FirstName pair.Value.LastName
-        printfn "%s, %s" pair.Key.Github pair.Value.Github
+        printfn "%s,%s" pair.Key.Github pair.Value.Github
     
     0
