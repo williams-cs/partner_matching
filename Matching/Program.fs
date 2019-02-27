@@ -54,10 +54,7 @@ let findAndSwap(nos: string[])(myPrefs: string[]) : string[] =
         swap mp noidx (mp.Length - i - 1)
     mp
 
-// returns a dictionary where each student ID represents the key
-// and the value represents a rank ordering of preferred student
-// IDs for that student
-let assignPreferences(path: String option)(students: Student[])(r: Random) : Dictionary<string,string[]> =
+let readAntiPreferences(path: String option) : AntiPreference[] =
     match path with
     | Some p ->
         use reader = new StreamReader(p)
@@ -71,84 +68,97 @@ let assignPreferences(path: String option)(students: Student[])(r: Random) : Dic
                                                     .Replace("#", "")
                                        )
         csv.Configuration.PrepareHeaderForMatch <- f
-        let antiprefs = csv.GetRecords<AntiPreference>() |> Seq.toArray
+        csv.GetRecords<AntiPreference>() |> Seq.toArray
+    | None -> [||]
 
-        // initially assign randomly
-        let rPrefs = randomPreferences students r
+// returns a dictionary where each student ID represents the key
+// and the value represents a rank ordering of preferred student
+// IDs for that student
+let assignPreferences(antiprefs: AntiPreference[])(students: Student[])(r: Random) : Dictionary<string,string[]> =
+    // initially assign randomly
+    let rPrefs = randomPreferences students r
 
-        // get student-by-name dictionary
-        let sByName = Student.StudentsByName students
+    // get student-by-name dictionary
+    let sByName = Student.StudentsByName students
 
-        // get student-by-email directory
-        let sByEmail = Student.StudentsByEmail students
+    // get student-by-email directory
+    let sByEmail = Student.StudentsByEmail students
 
-        // get student-by-ID directory
-        let sByID = Student.StudentsByID students
+    // get student-by-ID directory
+    let sByID = Student.StudentsByID students
 
-        // track reflexive relation
-        let reflexiveAntiprefs = new Dictionary<string,HashSet<string>>()
+    // track reflexive relation
+    let reflexiveAntiprefs = new Dictionary<string,HashSet<string>>()
 
-        // for each antipref list
-        // swap antipreferences for student with next lowest random preference
-        let aps =
-            antiprefs |>
-                Array.map (fun ap ->
-                    // lookup student by email address and get student ID
-                    // student may not be in section, in which case, skip
-                    if sByEmail.ContainsKey(ap.EmailAddress) then
-                        let sID = sByEmail.[ap.EmailAddress].ID
-                        // get list of students this student does not want to work with
-                        let nos = ap.AsArray
+    // for each antipref list
+    // swap antipreferences for student with next lowest random preference
+    let aps =
+        antiprefs |>
+            Array.map (fun ap ->
+                // lookup student by email address and get student ID
+                // student may not be in section, in which case, skip
+                if sByEmail.ContainsKey(ap.EmailAddress) then
+                    let sID = sByEmail.[ap.EmailAddress].ID
+                    // get list of students this student does not want to work with
+                    let nos = ap.AsArray
 
-                        // filter students who are not in this section
-                        let nos' = nos |> Array.filter (fun sname -> sByName.ContainsKey sname)
+                    // filter students who are not in this section
+                    let nos' = nos |> Array.filter (fun sname -> sByName.ContainsKey sname)
 
-                        // add nos' to reflexive antipref dict
-                        for name in nos' do
-                            let apSID = sByName.[name].ID
-                            if not (reflexiveAntiprefs.ContainsKey apSID) then
-                                reflexiveAntiprefs.Add(apSID, new HashSet<string>())
-                            reflexiveAntiprefs.[apSID].Add(sByID.[sID].Name) |> ignore
+                    // add nos' to reflexive antipref dict
+                    for name in nos' do
+                        let apSID = sByName.[name].ID
+                        if not (reflexiveAntiprefs.ContainsKey apSID) then
+                            reflexiveAntiprefs.Add(apSID, new HashSet<string>())
+                        reflexiveAntiprefs.[apSID].Add(sByID.[sID].Name) |> ignore
 
-                        // get the students assigned preferences
-                        Some(sID, findAndSwap nos' rPrefs.[sID])
-                    else
-                        None
-                ) |>
-                Array.choose id
-        // turn into dict
-        let apd = aps |> adict
+                    // get the students assigned preferences
+                    Some(sID, findAndSwap nos' rPrefs.[sID])
+                else
+                    None
+            ) |>
+            Array.choose id
+    // turn into dict
+    let apd = aps |> adict
 
-        // make relation reflexive
-        let rapd =
-            reflexiveAntiprefs |>
-                Seq.map (fun kvp ->
-                    let sID = kvp.Key
-                    let nos = kvp.Value |> Seq.toArray
-                    sID, findAndSwap nos rPrefs.[sID]
-                ) |> adict
+    // make relation reflexive
+    let rapd =
+        reflexiveAntiprefs |>
+            Seq.map (fun kvp ->
+                let sID = kvp.Key
+                let nos = kvp.Value |> Seq.toArray
+                sID, findAndSwap nos rPrefs.[sID]
+            ) |> adict
 
-        // replace prefs with antiprefs where appropriate
-        let rPrefs' =
-            rPrefs |>
-                Seq.map (fun kvp ->
-                    if apd.ContainsKey(kvp.Key) then
-                        // antipreference
-                        kvp.Key, apd.[kvp.Key]
-                    else if rapd.ContainsKey(kvp.Key) then
-                        // reflexive antipreference
-                        kvp.Key, rapd.[kvp.Key]
-                    else
-                        // no preference
-                        kvp.Key, kvp.Value
-                ) |> adict
-        rPrefs'
-        
-     | None ->
-         randomPreferences students r
+    // replace prefs with antiprefs where appropriate
+    let rPrefs' =
+        rPrefs |>
+            Seq.map (fun kvp ->
+                if apd.ContainsKey(kvp.Key) then
+                    // antipreference
+                    kvp.Key, apd.[kvp.Key]
+                else if rapd.ContainsKey(kvp.Key) then
+                    // reflexive antipreference
+                    kvp.Key, rapd.[kvp.Key]
+                else
+                    // no preference
+                    kvp.Key, kvp.Value
+            ) |> adict
+    rPrefs'
 
 let studentsByIndex(students: Student[]) : Dictionary<int,Student> =
     students |> Array.mapi (fun i student -> i, student) |> adict
+
+let numAntiPrefs(students: Student[])(antiprefs: AntiPreference[]) : Dictionary<string,int> =
+    let sByEmail = Student.StudentsByEmail students
+    let d = new Dictionary<string,int>()
+    for ap in antiprefs do
+        let email = ap.EmailAddress
+        let student = sByEmail email
+        let cnt = ap.AntiPrefCount
+        d.Add(student.ID, cnt)
+
+    failwith "hey"
 
 let group_students(students: Student[])(prefs: Dictionary<string,string[]>) : HashSet<Student>[] =
     let takenNames = new HashSet<string>();
@@ -225,8 +235,11 @@ let main argv =
     // read roster CSV
     let students = readRoster rosterpath
 
+    // read antiprefs CSV
+    let antiprefs = readAntiPreferences prefpath
+
     // read preferences, taking into account antipreferences
-    let prefs = assignPreferences prefpath students r
+    let prefs = assignPreferences antiprefs students r
 
     // shuffle students in-place (so that no student always gets their first choice)
     shuffle students r

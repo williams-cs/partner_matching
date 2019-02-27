@@ -49,6 +49,10 @@ namespace CSVUtil
             }
             return ys;
         }
+        public int AntiPrefCount
+        {
+            get { return this.AsArray.Length; }
+        }
 
         public override string ToString()
         {
