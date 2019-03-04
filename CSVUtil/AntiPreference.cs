@@ -58,5 +58,15 @@ namespace CSVUtil
         {
             return "[" + Timestamp + ", " + EmailAddress + ", " + IWouldPreferNotToWorkWith1 + ", " + IWouldPreferNotToWorkWith2 + ", " + IWouldPreferNotToWorkWith3;
         }
+
+        public static Dictionary<string,AntiPreference> antiPrefsByEmail(AntiPreference[] prefs)
+        {
+            var d = new Dictionary<string, AntiPreference>();
+            foreach (var ap in prefs)
+            {
+                d.Add(ap.EmailAddress, ap);
+            }
+            return d;
+        }
     }
 }

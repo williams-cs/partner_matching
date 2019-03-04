@@ -149,23 +149,38 @@ let assignPreferences(antiprefs: AntiPreference[])(students: Student[])(r: Rando
 let studentsByIndex(students: Student[]) : Dictionary<int,Student> =
     students |> Array.mapi (fun i student -> i, student) |> adict
 
-let numAntiPrefs(students: Student[])(antiprefs: AntiPreference[]) : Dictionary<string,int> =
-    let sByEmail = Student.StudentsByEmail students
-    let d = new Dictionary<string,int>()
-    for ap in antiprefs do
-        let email = ap.EmailAddress
-        let student = sByEmail email
-        let cnt = ap.AntiPrefCount
-        d.Add(student.ID, cnt)
+let numAntiPrefs(students: Student[])(antiprefs: AntiPreference[]) : Dictionary<Student,int> =
+    let pByEmail = AntiPreference.antiPrefsByEmail antiprefs
+    let d = new Dictionary<Student,int>()
+    for student in students do
+        let email = student.Email
+        if pByEmail.ContainsKey email then
+            let ap = pByEmail.[email]
+            let cnt = ap.AntiPrefCount
+            d.Add(student, cnt)
+        else
+            d.Add(student,0)
+    d
 
-    failwith "hey"
-
-let group_students(students: Student[])(prefs: Dictionary<string,string[]>) : HashSet<Student>[] =
+let group_students(students: Student[])(prefs: Dictionary<string,string[]>)(antiPrefs: AntiPreference[]) : HashSet<Student>[] =
     let takenNames = new HashSet<string>();
     let mutable groups = []
     let sByName = Student.StudentsByName students
+    let apCount = numAntiPrefs students antiPrefs
 
-    for student in students do
+    let students' = 
+        students |>
+        Array.sortWith
+            (fun s1 s2 ->
+                if apCount.[s1] > apCount.[s2] then
+                    -1
+                else if apCount.[s1] = apCount.[s2] then
+                    0
+                else
+                    1
+            )
+
+    for student in students' do
         // get ID
         let sID = student.ID
 
@@ -245,7 +260,7 @@ let main argv =
     shuffle students r
 
     // pair
-    let groups = group_students students prefs
+    let groups = group_students students prefs antiprefs
 
     for group in groups do
         let githubs = group |> Seq.map (fun s -> s.Github)
